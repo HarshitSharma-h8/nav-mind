@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Mind Explorer Interface</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emotion-hue: 240;
+    --emotion-speed: 8s;
+    --emotion-intensity: 0.6;
+    --bg-primary: hsl(var(--emotion-hue), 80%, 4%);
+    --bg-secondary: hsl(var(--emotion-hue), 60%, 8%);
+    --accent-glow: hsl(var(--emotion-hue), 100%, 65%);
+    --accent-soft: hsl(var(--emotion-hue), 70%, 45%);
+    --glass-bg: hsla(var(--emotion-hue), 40%, 20%, 0.15);
+    --glass-border: hsla(var(--emotion-hue), 60%, 70%, 0.2);
+    --text-primary: hsl(var(--emotion-hue), 30%, 95%);
+    --text-muted: hsl(var(--emotion-hue), 20%, 60%);
+  }
+ 
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+ 
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: none;
+  }
+ 
+  /* CUSTOM CURSOR */
+  #cursor {
+    position: fixed; top: 0; left: 0; z-index: 9999;
+    width: 20px; height: 20px;
+    border: 1px solid var(--accent-glow);
+    border-radius: 50%;
+    pointer-events: none;
+    transition: transform 0.1s ease, border-color 0.3s ease, width 0.2s ease, height 0.2s ease;
+    mix-blend-mode: screen;
+  }
+  #cursor-dot {
+    position: fixed; top: 0; left: 0; z-index: 9999;
+    width: 4px; height: 4px;
+    background: var(--accent-glow);
+    border-radius: 50%;
+    pointer-events: none;
+    transition: transform 0.05s ease;
+  }
+ 
+  /* ANIMATED BACKGROUND */
+  #bg-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+ 
+  /* NEBULA LAYERS */
+  .nebula {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    animation: nebulaDrift var(--emotion-speed) ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  .nebula-1 { width: 600px; height: 600px; top: -100px; left: -100px; background: hsl(var(--emotion-hue), 80%, 40%); animation-delay: 0s; }
+  .nebula-2 { width: 400px; height: 400px; bottom: -50px; right: -50px; background: hsl(calc(var(--emotion-hue) + 40), 80%, 40%); animation-delay: -3s; }
+  .nebula-3 { width: 300px; height: 300px; top: 40%; left: 40%; background: hsl(calc(var(--emotion-hue) - 30), 90%, 50%); animation-delay: -5s; }
+ 
+  @keyframes nebulaDrift {
+    0% { transform: scale(1) translate(0, 0) rotate(0deg); opacity: calc(var(--emotion-intensity) * 0.25); }
+    100% { transform: scale(1.3) translate(30px, -30px) rotate(20deg); opacity: calc(var(--emotion-intensity) * 0.4); }
+  }
+ 
+  /* SCANLINES */
+  .scanlines {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    z-index: 1; pointer-events: none;
+  }
+ 
+  /* GRID OVERLAY */
+  .grid-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-image: linear-gradient(var(--glass-border) 1px, transparent 1px), linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: 0.3;
+    z-index: 0; pointer-events: none;
+  }
+ 
+  /* MAIN LAYOUT */
+  #app {
+    position: relative; z-index: 2;
+    width: 100vw; height: 100vh;
+    display: grid;
+    grid-template-rows: 60px 1fr 180px;
+    grid-template-columns: 280px 1fr 300px;
+  }
+ 
+  /* HEADER */
+  #header {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+  }
+ 
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 1.1rem;
+    letter-spacing: 6px;
+    color: var(--accent-glow);
+    text-shadow: 0 0 20px var(--accent-glow);
+  }
+  .logo span { color: var(--text-muted); font-weight: 400; font-size: 0.65rem; letter-spacing: 3px; display: block; margin-top: 2px; }
+ 
+  .header-status {
+    display: flex; gap: 20px; align-items: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+  }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    color: var(--text-muted);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; animation: statusPulse 2s ease-in-out infinite; }
+  .status-dot.live { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+  .status-dot.warn { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; }
+  @keyframes statusPulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+ 
+  .header-controls { display: flex; gap: 10px; align-items: center; }
+  .mute-btn {
+    padding: 6px 14px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .mute-btn:hover { background: var(--accent-soft); border-color: var(--accent-glow); color: white; }
+ 
+  /* LEFT PANEL — DEEP DIVE */
+  #left-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid var(--glass-border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  #left-panel::-webkit-scrollbar { width: 3px; }
+  #left-panel::-webkit-scrollbar-track { background: transparent; }
+  #left-panel::-webkit-scrollbar-thumb { background: var(--accent-soft); border-radius: 2px; }
+ 
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 4px;
+    color: var(--accent-glow);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+ 
+  .search-container {
+    position: relative;
+  }
+  .search-bar {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    transition: border-color 0.3s;
+    outline: none;
+  }
+  .search-bar:focus { border-color: var(--accent-glow); box-shadow: 0 0 10px rgba(var(--emotion-hue),100%,65%,0.2); }
+  .search-bar::placeholder { color: var(--text-muted); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.7rem; }
+ 
+  .filter-section { display: flex; flex-direction: column; gap: 8px; }
+  .toggle-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .toggle-item:hover { border-color: var(--accent-soft); color: var(--text-primary); }
+  .toggle-item.active { border-color: var(--accent-glow); color: var(--accent-glow); background: rgba(var(--emotion-hue),100%,65%,0.05); }
+ 
+  .toggle-switch {
+    width: 28px; height: 14px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 7px;
+    border: 1px solid var(--glass-border);
+    position: relative;
+    transition: all 0.3s;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 8px; height: 8px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: all 0.3s;
+  }
+  .toggle-item.active .toggle-switch { background: var(--accent-soft); border-color: var(--accent-glow); }
+  .toggle-item.active .toggle-switch::after { left: 14px; background: white; }
+ 
+  /* EMOTION BUTTONS */
+  .emotion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .emotion-btn {
+    padding: 8px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 1px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: var(--text-muted);
+  }
+  .emotion-btn:hover { transform: scale(1.05); }
+  .emotion-btn.active { border-color: var(--accent-glow); color: white; box-shadow: 0 0 15px var(--accent-soft); }
+ 
+  .em-calm { --em: 220; }
+  .em-joy { --em: 45; }
+  .em-fear { --em: 270; }
+  .em-anger { --em: 0; }
+  .em-sad { --em: 200; }
+  .em-dream { --em: 300; }
+ 
+  .em-calm.active { background: hsla(220,80%,50%,0.2); border-color: hsl(220,80%,65%)!important; box-shadow: 0 0 15px hsl(220,80%,50%)!important; }
+  .em-joy.active { background: hsla(45,100%,50%,0.2); border-color: hsl(45,100%,65%)!important; box-shadow: 0 0 15px hsl(45,100%,50%)!important; }
+  .em-fear.active { background: hsla(270,80%,40%,0.2); border-color: hsl(270,80%,65%)!important; box-shadow: 0 0 15px hsl(270,80%,40%)!important; }
+  .em-anger.active { background: hsla(0,90%,40%,0.2); border-color: hsl(0,90%,65%)!important; box-shadow: 0 0 15px hsl(0,90%,40%)!important; }
+  .em-sad.active { background: hsla(200,60%,40%,0.2); border-color: hsl(200,60%,65%)!important; box-shadow: 0 0 15px hsl(200,60%,40%)!important; }
+  .em-dream.active { background: hsla(300,80%,40%,0.2); border-color: hsl(300,80%,65%)!important; box-shadow: 0 0 15px hsl(300,80%,40%)!important; }
+ 
+  /* NEURAL STATS */
+  .stat-row { display: flex; flex-direction: column; gap: 6px; }
+  .stat-item { display: flex; flex-direction: column; gap: 3px; }
+  .stat-label { font-size: 0.62rem; letter-spacing: 2px; color: var(--text-muted); font-family: 'Share Tech Mono', monospace; display: flex; justify-content: space-between; }
+  .stat-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .stat-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent-soft), var(--accent-glow)); transition: width 1s ease; box-shadow: 0 0 6px var(--accent-soft); }
+ 
+  /* MAIN VIEW — THOUGHT NETWORK */
+  #main-view {
+    position: relative;
+    overflow: hidden;
+  }
+ 
+  #thought-canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+ 
+  .thought-node {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    animation: thoughtFloat linear infinite;
+    transform-style: preserve-3d;
+  }
+ 
+  .thought-node:hover {
+    box-shadow: 0 0 30px var(--accent-glow), 0 0 60px var(--accent-soft), inset 0 0 20px rgba(255,255,255,0.1);
+    border-color: var(--accent-glow);
+    z-index: 100;
+  }
+ 
+  .thought-node .thought-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: 8px;
+    color: var(--text-primary);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+ 
+  @keyframes thoughtFloat {
+    0% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-15px) rotate(2deg); }
+    50% { transform: translateY(-5px) rotate(-1deg); }
+    75% { transform: translateY(-20px) rotate(1deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+  }
+ 
+  /* PARTICLE CONNECTIONS */
+  #connection-canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+ 
+  /* RIGHT PANEL — EMOTIONAL STATE */
+  #right-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-left: 1px solid var(--glass-border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+ 
+  /* EMOTION VISUALIZER */
+  #emotion-visualizer {
+    width: 100%;
+    height: 140px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    overflow: hidden;
+    position: relative;
+  }
+ 
+  .emotion-wave {
+    position: absolute;
+    bottom: 0;
+    width: 200%;
+    height: 60%;
+    border-radius: 40% 60% 0 0;
+    opacity: 0.4;
+    animation: emotionWave var(--emotion-speed) ease-in-out infinite;
+  }
+  .emotion-wave:nth-child(2) { animation-delay: -2s; opacity: 0.3; height: 50%; animation-duration: calc(var(--emotion-speed) * 0.7); }
+  .emotion-wave:nth-child(3) { animation-delay: -4s; opacity: 0.2; height: 70%; animation-duration: calc(var(--emotion-speed) * 1.3); }
+ 
+  @keyframes emotionWave {
+    0% { transform: translateX(0); background: hsl(var(--emotion-hue), 80%, 50%); }
+    50% { transform: translateX(-50%); background: hsl(calc(var(--emotion-hue) + 30), 80%, 60%); }
+    100% { transform: translateX(0); background: hsl(var(--emotion-hue), 80%, 50%); }
+  }
+ 
+  /* ACTIVE THOUGHTS LIST */
+  .thought-list { display: flex; flex-direction: column; gap: 6px; }
+  .thought-tag {
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .thought-tag:hover { border-color: var(--accent-glow); background: rgba(var(--emotion-hue),100%,65%,0.05); }
+  .thought-tag .tag-time { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: var(--text-muted); }
+ 
+  /* BOTTOM PANEL — MEMORY STREAM */
+  #memory-stream {
+    grid-column: 1 / -1;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--glass-border);
+    padding: 12px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative;
+  }
+ 
+  .stream-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+ 
+  .stream-controls { display: flex; gap: 8px; }
+  .stream-btn {
+    padding: 4px 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 3px;
+    color: var(--text-muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .stream-btn:hover { border-color: var(--accent-glow); color: var(--accent-glow); }
+ 
+  #memories-container {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-behavior: smooth;
+    align-items: center;
+  }
+  #memories-container::-webkit-scrollbar { height: 3px; }
+  #memories-container::-webkit-scrollbar-track { background: transparent; }
+  #memories-container::-webkit-scrollbar-thumb { background: var(--accent-soft); border-radius: 2px; }
+ 
+  .memory-card {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    position: relative;
+    min-width: 120px;
+  }
+ 
+  .memory-card.recent { opacity: 1; transform: scale(1); border-color: var(--accent-soft); }
+  .memory-card.old { opacity: 0.4; transform: scale(0.85); filter: blur(1px); }
+  .memory-card.ancient { opacity: 0.15; transform: scale(0.7); filter: blur(3px); }
+ 
+  .memory-card:hover { opacity: 1 !important; filter: none !important; transform: scale(1.05) !important; border-color: var(--accent-glow) !important; box-shadow: 0 0 20px var(--accent-soft); z-index: 10; }
+ 
+  .memory-date { font-family: 'Share Tech Mono', monospace; font-size: 0.55rem; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 1px; }
+  .memory-title { font-size: 0.72rem; letter-spacing: 1px; color: var(--text-primary); }
+  .memory-type { font-size: 0.58rem; margin-top: 3px; color: var(--accent-glow); letter-spacing: 2px; }
+ 
+  .memory-glow {
+    position: absolute;
+    bottom: -10px; left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 20px;
+    border-radius: 50%;
+    filter: blur(8px);
+    opacity: 0.3;
+  }
+ 
+  /* TIME CURSOR */
+  .time-cursor {
+    width: 2px;
+    height: 100%;
+    background: var(--accent-glow);
+    box-shadow: 0 0 10px var(--accent-glow);
+    flex-shrink: 0;
+    align-self: stretch;
+    border-radius: 1px;
+    position: relative;
+  }
+  .time-cursor::before {
+    content: 'NOW';
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem;
+    color: var(--accent-glow);
+    letter-spacing: 2px;
+  }
+ 
+  /* THOUGHT DETAIL MODAL */
+  #thought-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1000;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+  }
+  #thought-modal.open { display: flex; }
+ 
+  .modal-card {
+    width: 400px;
+    max-width: 90vw;
+    background: linear-gradient(135deg, hsla(var(--emotion-hue),40%,10%,0.95), hsla(var(--emotion-hue),30%,8%,0.95));
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--accent-soft);
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 0 60px var(--accent-soft), 0 0 120px rgba(0,0,0,0.8);
+    animation: modalAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+ 
+  @keyframes modalAppear {
+    from { opacity: 0; transform: scale(0.8) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+ 
+  .modal-close {
+    position: absolute; top: 14px; right: 16px;
+    background: none; border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .modal-close:hover { color: var(--accent-glow); }
+ 
+  .modal-tag { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; letter-spacing: 3px; color: var(--accent-glow); margin-bottom: 8px; }
+  .modal-title { font-family: 'Orbitron', monospace; font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary); line-height: 1.3; }
+  .modal-body { font-size: 0.85rem; line-height: 1.7; color: var(--text-muted); margin-bottom: 16px; letter-spacing: 0.5px; }
+  .modal-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+  .modal-badge {
+    padding: 4px 10px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--accent-glow);
+  }
+ 
+  .modal-visual {
+    width: 100%; height: 80px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+ 
+  /* FLOATING PARTICLES */
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleDrift linear infinite;
+    opacity: 0.4;
+  }
+ 
+  @keyframes particleDrift {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.4; }
+    90% { opacity: 0.4; }
+    100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+  }
+ 
+  /* EMOTION LABEL */
+  #emotion-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 4px;
+    text-align: center;
+    color: var(--accent-glow);
+    text-shadow: 0 0 15px var(--accent-glow);
+    margin-top: 4px;
+    transition: all 0.8s ease;
+  }
+ 
+  /* GLITCH EFFECT */
+  @keyframes glitch {
+    0% { text-shadow: 2px 0 var(--accent-glow), -2px 0 #ff00ff; }
+    10% { text-shadow: -2px 0 var(--accent-glow), 2px 0 #ff00ff; }
+    20% { text-shadow: 2px 2px var(--accent-glow), -2px -2px #ff00ff; }
+    30% { text-shadow: none; }
+    100% { text-shadow: none; }
+  }
+ 
+  .glitch { animation: glitch 3s infinite; }
+ 
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    #app {
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: 55px 1fr 150px;
+    }
+    #right-panel { display: none; }
+    #left-panel { padding: 12px; }
+  }
+ 
+  /* BOOT SCREEN */
+  #boot-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #000;
+    z-index: 9998;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px;
+    transition: opacity 1s ease;
+  }
+  #boot-screen.fadeout { opacity: 0; pointer-events: none; }
+ 
+  .boot-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 3rem;
+    font-weight: 900;
+    color: #00d4ff;
+    text-shadow: 0 0 40px #00d4ff, 0 0 80px #00d4ff;
+    letter-spacing: 10px;
+    animation: bootPulse 1.5s ease-in-out infinite;
+  }
+  .boot-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: #444; letter-spacing: 4px; }
+ 
+  .boot-bar {
+    width: 300px; height: 2px;
+    background: #111;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .boot-fill {
+    height: 100%; width: 0;
+    background: #00d4ff;
+    box-shadow: 0 0 10px #00d4ff;
+    animation: bootLoad 2s ease-out forwards;
+    border-radius: 1px;
+  }
+  .boot-text { font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; color: #333; letter-spacing: 2px; }
+ 
+  @keyframes bootPulse { 0%,100%{opacity:1;} 50%{opacity:0.7;} }
+  @keyframes bootLoad { to { width: 100%; } }
+ 
+  /* CURSOR EXPAND ON HOVER */
+  body.hovering #cursor { width: 40px; height: 40px; border-color: var(--accent-glow); background: rgba(255,255,255,0.05); }
+ 
+  /* NOTIFICATION TOAST */
+  #toast {
+    position: fixed; bottom: 200px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 10px 20px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--accent-soft);
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    color: var(--accent-glow);
+    z-index: 500;
+    opacity: 0;
+    transition: all 0.4s ease;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+ 
+  /* RIPPLE */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+    animation: rippleExpand 0.6s ease-out forwards;
+  }
+  @keyframes rippleExpand {
+    from { width: 0; height: 0; opacity: 0.5; transform: translate(-50%, -50%); }
+    to { width: 100px; height: 100px; opacity: 0; transform: translate(-50%, -50%); }
+  }
+</style>
+</head>
+<body>
+ 
+<!-- BOOT SCREEN -->
+<div id="boot-screen">
+  <div class="boot-logo glitch">NEXUS</div>
+  <div class="boot-sub">NEURAL CONSCIOUSNESS INTERFACE v7.3.1</div>
+  <div class="boot-bar"><div class="boot-fill"></div></div>
+  <div class="boot-text" id="boot-text">INITIALIZING NEURAL PATHWAYS...</div>
+</div>
+ 
+<!-- CUSTOM CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-dot"></div>
+ 
+<!-- TOAST -->
+<div id="toast"></div>
+ 
+<!-- BACKGROUND NEBULAS -->
+<div class="nebula nebula-1"></div>
+<div class="nebula nebula-2"></div>
+<div class="nebula nebula-3"></div>
+<div class="scanlines"></div>
+<div class="grid-overlay"></div>
+ 
+<!-- THOUGHT MODAL -->
+<div id="thought-modal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-tag" id="modal-tag">THOUGHT NODE</div>
+    <div class="modal-visual" id="modal-visual"></div>
+    <div class="modal-title" id="modal-title">Memory Fragment</div>
+    <div class="modal-body" id="modal-body">Loading neural data...</div>
+    <div class="modal-meta" id="modal-meta"></div>
+  </div>
+</div>
+ 
+<!-- MAIN APP -->
+<div id="app">
+  <!-- HEADER -->
+  <header id="header">
+    <div class="logo">NEXUS <span>NEURAL CONSCIOUSNESS INTERFACE</span></div>
+    <div class="header-status">
+      <div class="status-pill"><div class="status-dot live"></div>NEURAL SYNC ACTIVE</div>
+      <div class="status-pill"><div class="status-dot warn"></div>SUBJECT: LYRA-7</div>
+      <div class="status-pill" id="thought-count-pill">THOUGHTS: 0</div>
+    </div>
+    <div class="header-controls">
+      <button class="mute-btn" id="mute-btn" onclick="toggleMute()">◉ MUTE</button>
+      <div class="status-pill" id="emotion-display" style="color:var(--accent-glow)">CALM</div>
+    </div>
+  </header>
+ 
+  <!-- LEFT PANEL -->
+  <aside id="left-panel">
+    <div>
+      <div class="panel-title">◈ Deep Dive Console</div>
+      <div class="search-container">
+        <span class="search-icon">⌕</span>
+        <input type="text" class="search-bar" id="search-bar" placeholder="search memory..." oninput="filterThoughts(this.value)">
+      </div>
+    </div>
+ 
+    <div>
+      <div class="panel-title">◈ Neural Filters</div>
+      <div class="filter-section">
+        <div class="toggle-item" onclick="toggleFilter(this, 'hide-bad')">
+          <span>SUPPRESS TRAUMA</span>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="toggle-item" onclick="toggleFilter(this, 'dreams-only')">
+          <span>DREAM STATE ONLY</span>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="toggle-item" onclick="toggleFilter(this, 'visual-only')">
+          <span>VISUAL THOUGHTS</span>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="toggle-item" onclick="toggleFilter(this, 'core-memories')">
+          <span>CORE MEMORIES</span>
+          <div class="toggle-switch"></div>
+        </div>
+      </div>
+    </div>
+ 
+    <div>
+      <div class="panel-title">◈ Emotional Override</div>
+      <div class="emotion-grid">
+        <div class="emotion-btn em-calm active" onclick="setEmotion('calm', this)">🌊 CALM</div>
+        <div class="emotion-btn em-joy" onclick="setEmotion('joy', this)">✦ JOY</div>
+        <div class="emotion-btn em-fear" onclick="setEmotion('fear', this)">⚡ FEAR</div>
+        <div class="emotion-btn em-anger" onclick="setEmotion('anger', this)">🔥 ANGER</div>
+        <div class="emotion-btn em-sad" onclick="setEmotion('sad', this)">◌ MELANCHOLY</div>
+        <div class="emotion-btn em-dream" onclick="setEmotion('dream', this)">✦ DREAM</div>
+      </div>
+    </div>
+ 
+    <div>
+      <div class="panel-title">◈ Neural Statistics</div>
+      <div class="stat-row">
+        <div class="stat-item">
+          <div class="stat-label"><span>COHERENCE</span><span id="stat-coherence">87%</span></div>
+          <div class="stat-bar"><div class="stat-fill" id="sf-coherence" style="width:87%"></div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label"><span>RECALL DEPTH</span><span id="stat-recall">64%</span></div>
+          <div class="stat-bar"><div class="stat-fill" id="sf-recall" style="width:64%"></div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label"><span>CONSCIOUSNESS</span><span id="stat-conscious">93%</span></div>
+          <div class="stat-bar"><div class="stat-fill" id="sf-conscious" style="width:93%"></div></div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label"><span>SYNC FIDELITY</span><span id="stat-sync">78%</span></div>
+          <div class="stat-bar"><div class="stat-fill" id="sf-sync" style="width:78%"></div></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+ 
+  <!-- MAIN THOUGHT NETWORK -->
+  <main id="main-view">
+    <canvas id="connection-canvas"></canvas>
+    <div id="thought-canvas"></div>
+  </main>
+ 
+  <!-- RIGHT PANEL -->
+  <aside id="right-panel">
+    <div>
+      <div class="panel-title">◈ Emotional State</div>
+      <div id="emotion-visualizer">
+        <div class="emotion-wave"></div>
+        <div class="emotion-wave"></div>
+        <div class="emotion-wave"></div>
+      </div>
+      <div id="emotion-label">CALM STATE</div>
+    </div>
+ 
+    <div>
+      <div class="panel-title">◈ Active Thought Threads</div>
+      <div class="thought-list" id="active-thoughts"></div>
+    </div>
+ 
+    <div>
+      <div class="panel-title">◈ Synaptic Log</div>
+      <div id="synaptic-log" style="font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--text-muted);line-height:1.8;letter-spacing:1px;"></div>
+    </div>
+  </aside>
+ 
+  <!-- MEMORY STREAM -->
+  <div id="memory-stream">
+    <div class="stream-header">
+      <div class="panel-title" style="margin:0">◈ Memory Stream — Temporal Navigation</div>
+      <div class="stream-controls">
+        <button class="stream-btn" onclick="scrollMemories(-200)">◀ PAST</button>
+        <button class="stream-btn" onclick="scrollMemories(200)">FUTURE ▶</button>
+      </div>
+    </div>
+    <div id="memories-container"></div>
+  </div>
+</div>
+ 
+<script>
+// ═══════════════════════════════════════════════════════
+// NEXUS MIND EXPLORER — CORE SYSTEM
+// ═══════════════════════════════════════════════════════
+ 
+const EMOTIONS = {
+  calm:   { hue: 220, speed: 12, intensity: 0.5, label: 'CALM STATE',      color: '#4a9eff', particles: 'slow' },
+  joy:    { hue: 42,  speed: 5,  intensity: 0.9, label: 'EUPHORIC STATE',  color: '#ffcc00', particles: 'fast' },
+  fear:   { hue: 270, speed: 4,  intensity: 0.8, label: 'FEAR RESPONSE',   color: '#aa44ff', particles: 'erratic' },
+  anger:  { hue: 0,   speed: 2,  intensity: 1.0, label: 'STRESS OVERLOAD', color: '#ff3322', particles: 'fast' },
+  sad:    { hue: 200, speed: 14, intensity: 0.4, label: 'MELANCHOLIC STATE',color: '#44aacc', particles: 'slow' },
+  dream:  { hue: 300, speed: 10, intensity: 0.7, label: 'DREAM STATE',     color: '#ff66dd', particles: 'float' }
+};
+ 
+const THOUGHTS = [
+  { id:1, type:'VISUAL', label:'Skyline Memory', emotion:'calm', tags:['urban','childhood','core'],
+    title:'The Glass City at Dusk',
+    body:'The first time she saw a city from above — every window a star, every street a vein. The feeling of smallness and vastness at once. A memory that anchors her sense of wonder.',
+    badges:['2031.04.22','CORE MEMORY','HIGH FIDELITY'] },
+ 
+  { id:2, type:'FEAR', label:'Falling Sequence', emotion:'fear', tags:['trauma','dream','suppress'],
+    title:'Recurring Fall Pattern',
+    body:'A descent without end. The body knows before the mind — adrenaline flooding synapses. This memory has been accessed 247 times in the past month. Possible anxiety marker.',
+    badges:['2034.11.07','RECURRING','FLAGGED'] },
+ 
+  { id:3, type:'JOY', label:'First Contact', emotion:'joy', tags:['social','core','visual'],
+    title:'Neural Sync — Subject Alpha',
+    body:'The precise moment when two consciousnesses recognized each other across a crowded neural feed. Dopamine spike: 340% above baseline. Classified as formative bond.',
+    badges:['2033.06.14','BOND MEMORY','VIVID'] },
+ 
+  { id:4, type:'DREAM', label:'Infinite Library', emotion:'dream', tags:['dream','visual'],
+    title:'The Akashic Archive',
+    body:'A library with no ceiling. Every book ever written, every thought ever thought, organized by emotion rather than language. She visits this place every night. Duration: variable.',
+    badges:['2035.02.28','DREAMSCAPE','RECURRING'] },
+ 
+  { id:5, type:'ANGER', label:'Lost Data', emotion:'anger', tags:['trauma','suppress'],
+    title:'Memory Corruption Event',
+    body:'Seventeen days of data — gone. Something deleted it. The edges of this void are jagged, like torn circuitry. Anger not at what happened, but at the absence of knowing.',
+    badges:['2032.09.03','CORRUPTED','RESTRICTED'] },
+ 
+  { id:6, type:'CALM', label:'Ocean Protocol', emotion:'calm', tags:['visual','core'],
+    title:'Deep Calibration Sequence',
+    body:'A learned state: breathing synchronized to the rhythm of waves she has never physically seen. The body teaching itself peace through borrowed imagery.',
+    badges:['2034.07.19','LEARNED','STABLE'] },
+ 
+  { id:7, type:'DREAM', label:'Clock Fracture', emotion:'dream', tags:['dream','visual'],
+    title:'Temporal Dissolution Loop',
+    body:'Time behaves differently here. Minutes stretch into landscapes. Hours collapse into single sensations. She suspects this is where she actually lives, between one second and the next.',
+    badges:['2035.01.01','DREAMSCAPE','ANOMALOUS'] },
+ 
+  { id:8, type:'JOY', label:'Bioluminescence', emotion:'joy', tags:['visual','core','childhood'],
+    title:'First Memory of Light',
+    body:'Age four. A jar of fireflies on a summer night. The realization that living things could be their own light source. This became her life philosophy, encoded at the cellular level.',
+    badges:['2010.08.15','ORIGIN MEMORY','PROTECTED'] },
+ 
+  { id:9, type:'FEAR', label:'Echo Chamber', emotion:'fear', tags:['trauma','suppress'],
+    title:'Recursive Isolation Pattern',
+    body:'The thought of thoughts thinking about thoughts. An infinite regression that sometimes traps her. Neural feedback loop identified. Requires external anchor to terminate.',
+    badges:['2033.12.04','LOOP PATTERN','MONITORED'] },
+ 
+  { id:10, type:'CALM', label:'Rain Algorithm', emotion:'calm', tags:['visual','dream'],
+    title:'Precipitation as Language',
+    body:'She has catalogued 847 distinct types of rain and assigned each a meaning. This is how she reads the world — through the grammar of falling water.',
+    badges:['2034.03.22','CREATIVE','HIGH FIDELITY'] },
+ 
+  { id:11, type:'JOY', label:'Harmonic Node', emotion:'joy', tags:['core','visual'],
+    title:'Music Memory Cluster',
+    body:'A song heard once at the edge of sleep. She has never found it again in waking life. The melody exists only in her neural archives, perhaps created by the mind itself.',
+    badges:['2031.11.30','UNIQUE','UNVERIFIED'] },
+ 
+  { id:12, type:'DREAM', label:'Mirror Protocol', emotion:'dream', tags:['dream','visual','core'],
+    title:'The Other Self',
+    body:'In every dream, she sees a version of herself who made different choices. They communicate through eye contact. They have never spoken. This other self seems content.',
+    badges:['2035.03.14','DREAMSCAPE','PHILOSOPHICAL'] },
+];
+ 
+const MEMORIES = [
+  { year:'2008', label:'ORIGIN', title:'First Conscious Thought', type:'ORIGIN', emotion:'joy', age:'ancient' },
+  { year:'2012', label:'EVENT', title:'The Accident', type:'TRAUMA', emotion:'fear', age:'ancient' },
+  { year:'2015', label:'BOND', title:'First True Friend', type:'SOCIAL', emotion:'joy', age:'ancient' },
+  { year:'2018', label:'LOSS', title:'Grandmother Fades', type:'GRIEF', emotion:'sad', age:'old' },
+  { year:'2020', label:'CHANGE', title:'Neural Interface Day 1', type:'UPGRADE', emotion:'fear', age:'old' },
+  { year:'2022', label:'JOY', title:'The Glass City', type:'VISUAL', emotion:'calm', age:'old' },
+  { year:'2023', label:'BOND', title:'Alpha Connection', type:'SOCIAL', emotion:'joy', age:'recent' },
+  { year:'2024', label:'LOSS', title:'Data Corruption', type:'TRAUMA', emotion:'anger', age:'recent' },
+  { year:'2024', label:'DREAM', title:'Library Discovery', type:'DREAM', emotion:'dream', age:'recent' },
+  { year:'2025', label:'CORE', title:'Ocean Protocol Learned', type:'SKILL', emotion:'calm', age:'recent' },
+  { year:'NOW', label:'PRESENT', title:'This Moment', type:'ACTIVE', emotion:'calm', age:'recent' },
+];
+ 
+// ═══ STATE ═══
+let currentEmotion = 'calm';
+let activeFilters = new Set();
+let isMuted = false;
+let audioCtx = null;
+let nodes = [];
+let searchQuery = '';
+ 
+// ═══ CURSOR ═══
+const cursor = document.getElementById('cursor');
+const cursorDot = document.getElementById('cursor-dot');
+ 
+document.addEventListener('mousemove', e => {
+  cursor.style.left = (e.clientX - 10) + 'px';
+  cursor.style.top = (e.clientY - 10) + 'px';
+  cursorDot.style.left = (e.clientX - 2) + 'px';
+  cursorDot.style.top = (e.clientY - 2) + 'px';
+});
+ 
+document.addEventListener('mouseover', e => {
+  if (e.target.matches('button, .thought-node, .memory-card, .emotion-btn, .toggle-item, .thought-tag')) {
+    document.body.classList.add('hovering');
+  } else {
+    document.body.classList.remove('hovering');
+  }
+});
+ 
+// ═══ BOOT ═══
+const bootMessages = [
+  'INITIALIZING NEURAL PATHWAYS...',
+  'CALIBRATING SYNAPSE BRIDGE...',
+  'LOADING CONSCIOUSNESS MAP...',
+  'ESTABLISHING NEURAL LINK...',
+  'DECRYPTING MEMORY CLUSTERS...',
+  'MIND EXPLORER ONLINE'
+];
+ 
+let bootIdx = 0;
+const bootInterval = setInterval(() => {
+  bootIdx++;
+  if (bootIdx < bootMessages.length) {
+    document.getElementById('boot-text').textContent = bootMessages[bootIdx];
+  }
+  if (bootIdx >= bootMessages.length) {
+    clearInterval(bootInterval);
+    setTimeout(() => {
+      document.getElementById('boot-screen').classList.add('fadeout');
+      setTimeout(() => {
+        document.getElementById('boot-screen').style.display = 'none';
+        initApp();
+      }, 1000);
+    }, 400);
+  }
+}, 350);
+ 
+// ═══ INIT ═══
+function initApp() {
+  renderThoughts();
+  renderMemories();
+  renderActiveThoughts();
+  startCanvas();
+  startParticles();
+  startStatAnimation();
+  startSynapticLog();
+  setTimeout(() => showToast('NEURAL LINK ESTABLISHED — SUBJECT: LYRA-7'), 500);
+}
+ 
+// ═══ EMOTION SYSTEM ═══
+function setEmotion(name, btn) {
+  currentEmotion = name;
+  const em = EMOTIONS[name];
+  const root = document.documentElement;
+ 
+  root.style.setProperty('--emotion-hue', em.hue);
+  root.style.setProperty('--emotion-speed', em.speed + 's');
+  root.style.setProperty('--emotion-intensity', em.intensity);
+  root.style.setProperty('--accent-glow', `hsl(${em.hue}, 100%, 65%)`);
+  root.style.setProperty('--accent-soft', `hsl(${em.hue}, 70%, 45%)`);
+  root.style.setProperty('--glass-bg', `hsla(${em.hue}, 40%, 20%, 0.15)`);
+  root.style.setProperty('--glass-border', `hsla(${em.hue}, 60%, 70%, 0.2)`);
+  root.style.setProperty('--bg-primary', `hsl(${em.hue}, 80%, 4%)`);
+ 
+  document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+ 
+  document.getElementById('emotion-label').textContent = em.label;
+  document.getElementById('emotion-display').textContent = name.toUpperCase();
+ 
+  // Update thought node colors
+  document.querySelectorAll('.thought-node').forEach(n => {
+    const baseGlow = n.dataset.glowColor || em.color;
+    n.style.boxShadow = `0 0 20px ${em.color}33, 0 0 40px ${em.color}11`;
+    n.style.borderColor = `hsla(${em.hue}, 60%, 70%, 0.3)`;
+  });
+ 
+  showToast(`EMOTIONAL OVERRIDE: ${em.label}`);
+  playEmotionSound(name);
+}
+ 
+// ═══ AUDIO ═══
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+ 
+function playEmotionSound(emotion) {
+  if (isMuted) return;
+  try {
+    initAudio();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+ 
+    const freqs = { calm: 174, joy: 396, fear: 285, anger: 528, sad: 136, dream: 432 };
+    oscillator.frequency.setValueAtTime(freqs[emotion] || 200, audioCtx.currentTime);
+    oscillator.type = emotion === 'dream' ? 'sine' : emotion === 'anger' ? 'sawtooth' : 'sine';
+ 
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.2);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+ 
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 1.5);
+  } catch(e) {}
+}
+ 
+function playClickSound() {
+  if (isMuted) return;
+  try {
+    initAudio();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.setValueAtTime(800, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1);
+    g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    o.start(); o.stop(audioCtx.currentTime + 0.1);
+  } catch(e) {}
+}
+ 
+function toggleMute() {
+  isMuted = !isMuted;
+  const btn = document.getElementById('mute-btn');
+  btn.textContent = isMuted ? '◉ UNMUTE' : '◉ MUTE';
+  btn.style.borderColor = isMuted ? '#ff4444' : '';
+  showToast(isMuted ? 'SOUNDSCAPE MUTED' : 'SOUNDSCAPE ACTIVE');
+}
+ 
+// ═══ THOUGHT RENDERING ═══
+const EMOTION_COLORS = { calm:'#4a9eff', joy:'#ffcc00', fear:'#aa44ff', anger:'#ff3322', sad:'#44aacc', dream:'#ff66dd' };
+ 
+function renderThoughts() {
+  const canvas = document.getElementById('thought-canvas');
+  canvas.innerHTML = '';
+  nodes = [];
+ 
+  const filtered = THOUGHTS.filter(t => {
+    if (searchQuery && !t.label.toLowerCase().includes(searchQuery.toLowerCase()) && !t.body.toLowerCase().includes(searchQuery.toLowerCase()) && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (activeFilters.has('hide-bad') && (t.emotion === 'fear' || t.emotion === 'anger')) return false;
+    if (activeFilters.has('dreams-only') && !t.tags.includes('dream')) return false;
+    if (activeFilters.has('visual-only') && !t.tags.includes('visual')) return false;
+    if (activeFilters.has('core-memories') && !t.tags.includes('core')) return false;
+    return true;
+  });
+ 
+  document.getElementById('thought-count-pill').textContent = `THOUGHTS: ${filtered.length}`;
+ 
+  const W = canvas.offsetWidth || 800;
+  const H = canvas.offsetHeight || 500;
+ 
+  filtered.forEach((thought, i) => {
+    const size = 60 + Math.random() * 80;
+    const depth = 0.4 + Math.random() * 0.6;
+    const actualSize = size * depth;
+ 
+    const el = document.createElement('div');
+    el.className = 'thought-node';
+    el.dataset.id = thought.id;
+    el.dataset.glowColor = EMOTION_COLORS[thought.emotion] || '#ffffff';
+ 
+    const margin = actualSize;
+    const x = margin + Math.random() * (W - margin * 2);
+    const y = margin + Math.random() * (H - margin * 2);
+ 
+    el.style.cssText = `
+      width: ${actualSize}px;
+      height: ${actualSize}px;
+      left: ${x - actualSize/2}px;
+      top: ${y - actualSize/2}px;
+      animation-duration: ${6 + Math.random() * 8}s;
+      animation-delay: -${Math.random() * 10}s;
+      box-shadow: 0 0 ${actualSize * 0.3}px ${EMOTION_COLORS[thought.emotion]}44, 0 0 ${actualSize * 0.6}px ${EMOTION_COLORS[thought.emotion]}11;
+      z-index: ${Math.floor(depth * 10)};
+      transform: scale(${depth});
+    `;
+ 
+    const label = document.createElement('div');
+    label.className = 'thought-label';
+    label.innerHTML = `<div style="color:${EMOTION_COLORS[thought.emotion]};font-size:0.9em;margin-bottom:3px">${thought.type}</div>${actualSize > 90 ? thought.label : ''}`;
+    el.appendChild(label);
+ 
+    // Glow ring
+    const ring = document.createElement('div');
+    ring.style.cssText = `
+      position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;
+      border-radius:50%;border:1px solid ${EMOTION_COLORS[thought.emotion]}44;
+      animation:thoughtFloat ${5+Math.random()*5}s ease-in-out infinite alternate;
+      pointer-events:none;
+    `;
+    el.appendChild(ring);
+ 
+    el.addEventListener('click', (e) => {
+      playClickSound();
+      createRipple(e);
+      openModal(thought);
+      if (thought.emotion !== currentEmotion) {
+        document.querySelector(`.em-${thought.emotion}`)?.click();
+      }
+    });
+ 
+    canvas.appendChild(el);
+    nodes.push({ el, x, y, size: actualSize });
+  });
+ 
+  setTimeout(startCanvas, 100);
+}
+ 
+function createRipple(e) {
+  const ripple = document.createElement('div');
+  ripple.className = 'ripple';
+  ripple.style.left = e.clientX + 'px';
+  ripple.style.top = e.clientY + 'px';
+  document.body.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+}
+ 
+// ═══ CANVAS CONNECTIONS ═══
+function startCanvas() {
+  const canvas = document.getElementById('connection-canvas');
+  const ctx = canvas.getContext('2d');
+ 
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+ 
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const em = EMOTIONS[currentEmotion];
+    const color = `hsl(${em.hue}, 80%, 60%)`;
+ 
+    nodes.forEach((a, i) => {
+      nodes.slice(i+1).forEach(b => {
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 200) {
+          const alpha = (1 - dist/200) * 0.15;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `hsla(${em.hue}, 80%, 60%, ${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      });
+    });
+ 
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+ 
+// ═══ PARTICLES ═══
+function startParticles() {
+  const container = document.getElementById('app');
+  for (let i = 0; i < 25; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 2 + Math.random() * 4;
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;
+      background:hsl(var(--emotion-hue),80%,70%);
+      box-shadow:0 0 6px hsl(var(--emotion-hue),80%,70%);
+      animation-duration:${8+Math.random()*12}s;
+      animation-delay:-${Math.random()*15}s;
+    `;
+    document.body.appendChild(p);
+  }
+}
+ 
+// ═══ MODAL ═══
+function openModal(thought) {
+  document.getElementById('modal-tag').textContent = thought.type + ' NODE · ' + (thought.tags.join(' · ').toUpperCase());
+  document.getElementById('modal-title').textContent = thought.title;
+  document.getElementById('modal-body').textContent = thought.body;
+ 
+  const meta = document.getElementById('modal-meta');
+  meta.innerHTML = thought.badges.map(b => `<div class="modal-badge">${b}</div>`).join('');
+ 
+  const visual = document.getElementById('modal-visual');
+  const color = EMOTION_COLORS[thought.emotion];
+  visual.style.background = `linear-gradient(135deg, ${color}22, ${color}44)`;
+  visual.innerHTML = `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:3px;color:${color};text-align:center">
+    <div style="font-size:1.5rem;margin-bottom:4px">⬡</div>
+    ${thought.type} CLUSTER
+  </div>
+  <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,${color}08 0,${color}08 1px,transparent 0,transparent 50%);background-size:10px 10px;"></div>`;
+ 
+  document.getElementById('thought-modal').classList.add('open');
+  addLog(`ACCESSED: ${thought.title}`);
+}
+ 
+function closeModal() {
+  document.getElementById('thought-modal').classList.remove('open');
+}
+ 
+document.getElementById('thought-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('thought-modal')) closeModal();
+});
+ 
+// ═══ MEMORIES ═══
+const MEM_EMOTION_COLORS = { calm:'#4a9eff', joy:'#ffcc00', fear:'#aa44ff', anger:'#ff3322', sad:'#44aacc', dream:'#ff66dd' };
+ 
+function renderMemories() {
+  const container = document.getElementById('memories-container');
+  container.innerHTML = '';
+ 
+  MEMORIES.forEach((mem, i) => {
+    const card = document.createElement('div');
+    card.className = `memory-card ${mem.age}`;
+    card.style.borderColor = MEM_EMOTION_COLORS[mem.emotion] + '44';
+    card.innerHTML = `
+      <div class="memory-date">${mem.year} · ${mem.label}</div>
+      <div class="memory-title">${mem.title}</div>
+      <div class="memory-type">${mem.type}</div>
+      <div class="memory-glow" style="background:${MEM_EMOTION_COLORS[mem.emotion]}"></div>
+    `;
+ 
+    if (mem.year === 'NOW') {
+      const cursor = document.createElement('div');
+      cursor.className = 'time-cursor';
+      container.appendChild(cursor);
+    }
+ 
+    card.addEventListener('click', () => {
+      playClickSound();
+      const thought = THOUGHTS.find(t => t.emotion === mem.emotion) || THOUGHTS[0];
+      openModal({...thought, title: mem.title, body: `Memory from ${mem.year}: ${mem.title}. Classification: ${mem.type}. This memory carries strong ${mem.emotion} resonance and is stored in the ${mem.age} archive.`});
+      document.querySelector(`.em-${mem.emotion}`)?.click();
+    });
+ 
+    container.appendChild(card);
+  });
+ 
+  // Scroll to NOW
+  setTimeout(() => {
+    const cursor = container.querySelector('.time-cursor');
+    if (cursor) cursor.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 500);
+}
+ 
+function scrollMemories(amount) {
+  document.getElementById('memories-container').scrollBy({ left: amount, behavior: 'smooth' });
+}
+ 
+// ═══ ACTIVE THOUGHTS SIDEBAR ═══
+function renderActiveThoughts() {
+  const container = document.getElementById('active-thoughts');
+  const recent = THOUGHTS.slice(0, 5);
+ 
+  container.innerHTML = recent.map(t => `
+    <div class="thought-tag" onclick="openModal(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+      <span>${t.label}</span>
+      <span class="tag-time" style="color:${EMOTION_COLORS[t.emotion]}">${t.type}</span>
+    </div>
+  `).join('');
+}
+ 
+// ═══ FILTERS ═══
+function toggleFilter(el, key) {
+  el.classList.toggle('active');
+  if (activeFilters.has(key)) activeFilters.delete(key);
+  else activeFilters.add(key);
+  renderThoughts();
+  showToast(el.classList.contains('active') ? `FILTER ON: ${key.replace('-',' ').toUpperCase()}` : `FILTER OFF: ${key.replace('-',' ').toUpperCase()}`);
+}
+ 
+function filterThoughts(query) {
+  searchQuery = query;
+  renderThoughts();
+}
+ 
+// ═══ STATS ANIMATION ═══
+function startStatAnimation() {
+  setInterval(() => {
+    const vals = {
+      coherence: 80 + Math.random() * 15,
+      recall: 55 + Math.random() * 20,
+      conscious: 88 + Math.random() * 8,
+      sync: 70 + Math.random() * 20
+    };
+    Object.entries(vals).forEach(([k, v]) => {
+      const el = document.getElementById(`stat-${k}`);
+      const fill = document.getElementById(`sf-${k}`);
+      if (el) el.textContent = Math.round(v) + '%';
+      if (fill) fill.style.width = v + '%';
+    });
+  }, 2000);
+}
+ 
+// ═══ SYNAPTIC LOG ═══
+const LOG_MESSAGES = [
+  'Neural pathway sync stable',
+  'Memory retrieval nominal',
+  'Synaptic bridge active',
+  'Consciousness stream: clean',
+  'Temporal index updated',
+  'Emotional resonance detected',
+  'Memory cluster accessed',
+  'Deep archive queried',
+  'Pattern recognition: active',
+  'Neural feedback: nominal',
+];
+ 
+function startSynapticLog() {
+  const log = document.getElementById('synaptic-log');
+  let entries = [];
+ 
+  function addEntry() {
+    const time = new Date().toTimeString().split(' ')[0];
+    entries.push(`[${time}] ${LOG_MESSAGES[Math.floor(Math.random() * LOG_MESSAGES.length)]}`);
+    if (entries.length > 8) entries.shift();
+    log.innerHTML = entries.join('<br>');
+  }
+ 
+  addEntry();
+  setInterval(addEntry, 2500);
+}
+ 
+function addLog(msg) {
+  const log = document.getElementById('synaptic-log');
+  const time = new Date().toTimeString().split(' ')[0];
+  const cur = log.innerHTML;
+  const lines = cur.split('<br>').filter(Boolean);
+  lines.push(`[${time}] ${msg}`);
+  if (lines.length > 8) lines.shift();
+  log.innerHTML = lines.join('<br>');
+}
+ 
+// ═══ TOAST ═══
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+ 
+// ═══ KEYBOARD ═══
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'm') toggleMute();
+});
+ 
+// ═══ WINDOW RESIZE ═══
+window.addEventListener('resize', () => {
+  setTimeout(renderThoughts, 300);
+});
+</script>
+</body>
+</html>
